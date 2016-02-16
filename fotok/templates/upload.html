@@ -1,0 +1,76 @@
+{% extends "main.html" %}
+
+{% block title %}Upload new photo &mdash; FotOK{% endblock %}
+
+{% block content %}
+<form>
+<p>Select some standard photo size:</p>
+<p>
+    <button type="button" class="btn btn-default size-btn" data-width="640" data-height="480">640x480</button>
+    <button type="button" class="btn btn-default size-btn" data-width="1280" data-height="720">1280x720</button>
+    <button type="button" class="btn btn-default size-btn" data-width="1024" data-height="768">1024x768</button>
+    <button type="button" class="btn btn-default size-btn" data-width="400" data-height="400">400x400</button>
+</p>
+<p>Or input your own size: (100&mdash;1920)x(100&mdash;1080)</p>
+<p>
+    <div id="width-div">
+        <input type="number" class="form-control" placeholder="Width" id="width">
+    </div>x<div id="height-div">
+        <input type="number" class="form-control" placeholder="Height" id="height">
+    </div></p>
+<p><button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-upload"></span>&nbsp;Upload</button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    $(function() {
+        api = new API('{{ config['FEEDSERVER_URL'] }}');
+        var user_id = {{ current_user.id }};
+
+        var MIN_WIDTH = 100,
+            MAX_WIDTH = 1920,
+            MIN_HEIGHT = 100,
+            MAX_HEIGHT = 1080;
+
+        $('button.size-btn').click(function() {
+            var button = $(this);
+            $('input#width').val(button.data('width'));
+            $('input#height').val(button.data('height'));
+        });
+
+        $('form').submit(function() {
+            var width = parseInt($('input#width').val());
+            var height = parseInt($('input#height').val());
+
+            $('div#width-div').removeClass('has-error');
+            $('div#height-div').removeClass('has-error');
+
+            if (isNaN(width))
+                $('div#width-div').addClass('has-error');
+            if (isNaN(height))
+                $('div#height-div').addClass('has-error');
+            if (isNaN(width) || isNaN(height))
+                return false;
+
+            var badWidth = false, badHeight = false;
+            if (width < MIN_WIDTH || width > MAX_WIDTH) {
+                $('div#width-div').addClass('has-error');
+                badWidth = true;
+            }
+            if (height < MIN_HEIGHT || height > MAX_HEIGHT) {
+                $('div#height-div').addClass('has-error');
+                badHeight = true;
+            }
+            if (badWidth || badHeight)
+                return false;
+
+            api.addPhoto(width, height, function() {
+                window.location.href = '/user/' + user_id;
+            });
+
+            return false;
+        });
+    });
+</script>
+{% endblock %}

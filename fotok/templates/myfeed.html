@@ -1,0 +1,121 @@
+{% extends "main.html" %}
+
+{% block title %}Your subscriptions &mdash; FotOK{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-2">
+        <div class="well">
+            <ul class="nav nav-pills nav-stacked" id="subscriptionslist"></ul>
+        </div>
+    </div>
+    <div class="col-md-10">
+        <div class="tab-content" id="tabs">
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    function subscriptionItem(user) {
+        var item = $('<li>');
+        item.append($('<a>', {
+            href: '#user' + user.id,
+            'data-toggle': 'pill',
+            'data-userid': user.id,
+        }).text(user.username).append('<span class="badge pull-right"></span>'));
+
+        return item;
+    }
+
+    function subscriptionTab(user) {
+        var tab = $('<div>', {class: 'tab-pane', id: 'user' + user.id});
+        tab.append($('<div>', {class: 'photofeed'}));
+
+        tab.append('' +
+            '<div class="row">' +
+                '<div class="col-md-12">' +
+                    '<button type="button" class="btn btn-lg btn-primary btn-block loadmore">Load more</button>' +
+                    '<p class="text-center bg-info text-muted nomore">No more photos...</p>' +
+                '</div>' +
+            '</div>'
+        );
+
+        return tab;
+    }
+
+    function increaseBadge(user_id) {
+        var badge = $('#subscriptionslist a[data-userid="' + user_id + '"] span.badge');
+        var value = badge.text();
+        if (!value)
+            value = '0';
+        value = parseInt(value);
+
+        badge.text(value+1);
+    }
+
+    function setupTab(tab, user) {
+        var feed = tab.find('.photofeed');
+        var user_id = user.id;
+
+        // Need to store separate lastId's for all users
+        var photoLoader = new Loader(tab.find('.loadmore'), tab.find('.nomore'));
+
+        var addPhoto = function(photo) {
+            feed.prepend(wrapPhoto(photo, true));
+            increaseBadge(user_id)
+        };
+        var addOldPhoto = function(photo) {
+            feed.append(wrapPhoto(photo, true));
+        };
+
+        api.watch('user' + user_id, 'new_photo', function(photo) {
+            if (photo.user.id == user_id)
+                photoLoader.loadOne(photo, addPhoto);
+        });
+
+        api.getUserRecentPhotos(user.id, function(data) {
+            photoLoader.loadMore(data.photos, addOldPhoto);
+        });
+
+        tab.find('.loadmore').click(function() {
+            api.getUserPhotos(user.id, photoLoader.lastTimestamp, function(data) {
+                photoLoader.loadMore(data.photos, addOldPhoto);
+            });
+        });
+    }
+
+    $(function() {
+        api = new API('{{ config['FEEDSERVER_URL'] }}');
+
+        api.getToken(function() { // to fetch user id
+            api.getUserSubscriptions(api.user.id, function (data) {
+                var list = $('#subscriptionslist');
+                var tabs = $('#tabs');
+                for (var i = 0; i < data.subscriptions.length; i++) {
+                    var user = data.subscriptions[i];
+                    list.append(subscriptionItem(user));
+                    var tab = subscriptionTab(user);
+                    tabs.append(tab);
+
+                    setupTab(tab, user);
+                }
+
+                $('#subscriptionslist a').click(function(e) {
+                    e.preventDefault();
+
+                    var badge = $(this).find('span.badge');
+                    badge.text('');
+
+                    $(this).tab('show');
+                });
+
+                $('#subscriptionslist a:first').tab('show');
+            });
+
+        });
+
+    });
+</script>
+{% endblock %}

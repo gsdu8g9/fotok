@@ -1,0 +1,41 @@
+{% extends "main.html" %}
+
+{% block title %}Live feed &mdash; FotOK{% endblock %}
+
+{% block content %}
+<div id="photofeed"></div>
+<div class="row">
+    <div class="col-md-12">
+        <button type="button" class="btn btn-lg btn-primary btn-block" id="loadmore">Load more</button>
+        <p class="text-center bg-info text-muted" id="nomore">No more photos...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    function addPhoto(photo) {
+        $("#photofeed").prepend(wrapPhoto(photo));
+    }
+    function addOldPhoto(photo) {
+        $("#photofeed").append(wrapPhoto(photo));
+    }
+
+    $(function() {
+        api = new API('{{ config['FEEDSERVER_URL'] }}');
+
+        var photoLoader = new Loader($('#loadmore'), $('#nomore'));
+        api.watch('feed', 'new_photo', function(photo) { photoLoader.loadOne(photo, addPhoto) });
+
+        api.getRecentPhotos(function(data) {
+            photoLoader.loadMore(data.photos, addOldPhoto);
+        });
+
+        $("#loadmore").click(function() {
+            api.getPhotos(photoLoader.lastTimestamp, function(data) {
+                photoLoader.loadMore(data.photos, addOldPhoto);
+            });
+        });
+    });
+</script>
+{% endblock %}

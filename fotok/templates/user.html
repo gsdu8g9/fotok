@@ -1,0 +1,57 @@
+{% extends "main.html" %}
+
+{% block title %}{{ user.username }} &mdash; FotOK{% endblock %}
+
+{% block content %}
+<h3>{{ user.username }}
+{% if current_user.is_authenticated and user.id != current_user.id %}<small>
+    {% if user in current_user.subscriptions %}
+        <button type="button" class="btn btn-success btn-xs" disabled="disabled"><span class="glyphicon glyphicon-check"></span>&nbsp; Subscribed</button>
+    {% else %}
+        <button type="button" class="btn btn-primary btn-xs" id="subscribebutton"><span class="glyphicon glyphicon-plus"></span>&nbsp; Subscribe</button>
+    {% endif %}
+</small>{% endif %}</h3>
+
+<div id="photofeed"></div>
+<div class="row">
+    <div class="col-md-12">
+        <button type="button" class="btn btn-lg btn-primary btn-block" id="loadmore">Load more</button>
+        <p class="text-center bg-info text-muted" id="nomore">No more photos...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    function addPhoto(photo) {
+        $("#photofeed").prepend(wrapPhoto(photo, true));
+    }
+    function addOldPhoto(photo) {
+        $("#photofeed").append(wrapPhoto(photo, true));
+    }
+
+    $(function() {
+        api = new API('{{ config['FEEDSERVER_URL'] }}');
+        var user_id = {{ user.id }};
+
+        var photoLoader = new Loader($('#loadmore'), $('#nomore'));
+        api.watch('user' + user_id, 'new_photo', function(photo) { photoLoader.loadOne(photo, addPhoto) });
+
+        api.getUserRecentPhotos(user_id, function(data) {
+            photoLoader.loadMore(data.photos, addOldPhoto);
+        });
+
+        $("#loadmore").click(function() {
+            api.getUserPhotos(user_id, photoLoader.lastTimestamp, function(data) {
+                photoLoader.loadMore(data.photos, addOldPhoto);
+            });
+        });
+
+        $('#subscribebutton').click(function() {
+            api.addSubscription(user_id, function() {
+                window.location.reload();
+            });
+        });
+    });
+</script>
+{% endblock %}

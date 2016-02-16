@@ -1,0 +1,81 @@
+{% extends "main.html" %}
+
+{% block title %}Photo by {{ photo.user.username }} &mdash; FotOK{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel panel-primary">
+            <div class="panel-body">
+                <img class="img-responsive center-block" src="{{ photo.URL }}" width="{{ photo.width }}" height="{{ photo.height }}" />
+            </div>
+            <div class="panel-footer">
+                <span class="glyphicon glyphicon-user"></span>&nbsp; <a href="{{ url_for('user', id=photo.user.id) }}" class="panel-title">{{ photo.user.username }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% if current_user.is_authenticated %}
+<div class="row">
+    <div class="col-md-12">
+        <form id="commentform">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Your comment..." id="commenttext">
+                <span class="input-group-btn">
+                    <button class="btn btn-primary" type="submit">Send</button>
+                </span>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="row"><div class="col-md-12">&nbsp;</div></div>
+{% endif %}
+<div id="commentfeed"></div>
+<div class="row">
+    <div class="col-md-12">
+        <button type="button" class="btn btn-lg btn-primary btn-block" id="loadmore">Load more</button>
+        <p class="text-center bg-info text-muted" id="nomore">No more comments...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript">
+    function addComment(comment) {
+        $('#commentfeed').prepend(wrapComment(comment));
+    }
+    function addOldComment(comment) {
+        $('#commentfeed').append(wrapComment(comment));
+    }
+
+    $(function() {
+        photo_id = {{ photo.id }};
+
+        var commentLoader = new Loader($('#loadmore'), $('#nomore'));
+        api = new API('{{ config['FEEDSERVER_URL'] }}');
+
+        api.watch('photo' + photo_id, 'new_comment', function(comment) { commentLoader.loadOne(comment, addComment); });
+
+        api.getPhotoRecentComments(photo_id, function(data) {
+            commentLoader.loadMore(data.comments, addOldComment);
+        });
+
+        $("#loadmore").click(function() {
+            api.getPhotoComments(photo_id, commentLoader.lastTimestamp, function(data) {
+                commentLoader.loadMore(data.comments, addOldComment)
+            });
+        });
+
+        $("#commentform").submit(function() {
+            var text = $("#commenttext").val().trim();
+            if (!text)
+                return false;
+
+            api.addComment(photo_id, text, function() {
+                $("#commenttext").val('');
+            });
+            return false;
+        });
+    });
+</script>
+{% endblock %}
